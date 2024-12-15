@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Researchify</title>
+    <!-- Подключение библиотек без атрибутов integrity и crossorigin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- Настройка MathJax -->
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            tex2jax: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            "HTML-CSS": { availableFonts: ["TeX"] },
+            messageStyle: "none"
+        });
+    </script>
+    <!-- Подключение стилей -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+    <style>
+        /* Добавляем стили для анализа импакта */
+        .impact-analysis {
+            background-color: #f0fdf4;
+            border: 1px solid #86efac;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .impact-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .impact-metric {
+            padding: 1rem;
+            background-color: white;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Сохраняем остальные стили без изменений */
+        body {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            align-items: center;
+            padding: 12px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #6B7280;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        .chat-container {
+            height: calc(100vh - 340px);
+            overflow-y: auto;
+        }
+
+        .paper {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .paper:hover {
+            background-color: #f8fafc;
+        }
+
+        .markdown-content {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .markdown-content pre {
+            background: #1a1a1a;
+            padding: 1em;
+            margin: 0.5em 0;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .markdown-content code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.05);
+        }
+
+        .markdown-content pre code {
+            padding: 0;
+            background: transparent;
+        }
+
+        .markdown-content ul, .markdown-content ol {
+            padding-left: 2em;
+            margin: 1em 0;
+        }
+
+        .markdown-content blockquote {
+            border-left: 4px solid #e5e7eb;
+            padding-left: 1em;
+            margin: 1em 0;
+            color: #6b7280;
+        }
+
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+        }
+
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #e5e7eb;
+            padding: 0.5em;
+        }
+
+        .markdown-content img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .drag-active {
+            border: 2px dashed #60A5FA;
+            background-color: rgba(96, 165, 250, 0.1);
+        }
+
+        .analysis-section {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8fafc;
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        .analysis-section h5 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .analysis-content {
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        .paper-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .paper-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .paper-meta {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .paper-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .analysis-message {
+            background-color: #f0fdf4 !important;
+            border: 1px solid #86efac;
+            padding: 1.5rem !important;
+        }
+
+        .analysis-message .analysis-content {
+            color: #065f46;
+            line-height: 1.6;
+        }
+
+        .analysis-container {
+            position: relative;
+            padding: 1rem;
+            background-color: #f0fdf4;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .analysis-close-button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            color: #065f46;
+            cursor: pointer;
+            font-size: 1.5rem;
+            line-height: 1;
+            padding: 0.25rem;
+        }
+
+        .chat-message {
+            font-size: 14px;
+        }
+
+        .welcome-message {
+            font-size: 14px;
+        }
+
+        .markdown-content h3 {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+    <!-- Начальные данные -->
+    <script id="initial-data" type="application/json">
+        {{ chat_history|tojson|safe }}
+    </script>
+
+    {% raw %}
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // Настройка marked для корректной обработки markdown
+        marked.setOptions({
+            gfm: true,
+            breaks: true,
+            headerIds: true,
+            sanitize: false,
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) {}
+                }
+                return code;
+            }
+        });
+
+        // Компонент MarkdownContent
+        const MarkdownContent = ({ content, isAnalysis = false }) => {
+            const contentRef = useRef(null);
+
+            useEffect(() => {
+                if (contentRef.current) {
+                    contentRef.current.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                    if (window.MathJax && window.MathJax.Hub) {
+                        window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, contentRef.current]);
+                    }
+                }
+            }, [content]);
+
+            if (!content) return null;
+
+            try {
+                const htmlContent = marked.parse(content);
+                return (
+                    <div 
+                        ref={contentRef}
+                        className={`markdown-content ${isAnalysis ? 'analysis-content' : ''}`}
+                        dangerouslySetInnerHTML={{ __html: htmlContent }}
+                    />
+                );
+            } catch (error) {
+                console.error('Markdown parsing error:', error);
+                return <div>{content}</div>;
+            }
+        };
+
+        // Компонент AnalysisResult
+        const AnalysisResult = ({ analysis, onClose }) => {
+            const formatContent = (content) => {
+                if (!content) return null;
+                if (content === 'Не найдено') return 'Not found';
+                if (Array.isArray(content)) {
+                    return content.map(item => {
+                        const cleanItem = item.replace(/\.+$/, '.');
+                        if (item.startsWith('**')) {
+                            return `### ${item.replace(/\*\*/g, '')}`;
+                        }
+                        return `* ${cleanItem}`;
+                    }).join('\n');
+                }
+                return content;
+            };
+
+            const renderSection = (title, content) => {
+                const formattedContent = formatContent(content);
+                if (!formattedContent) return null;
+
+                return (
+                    <section key={title} className="mb-6">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-3">{title}</h2>
+                        {/* Проверяем, содержит ли контент HTML */}
+                        {/<[a-z][\s\S]*>/i.test(formattedContent) ? (
+                            <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
+                        ) : (
+                            <MarkdownContent content={formattedContent} isAnalysis={true} />
+                        )}
+                    </section>
+                );
+            };
+
+            if (!analysis) return null;
+
+            return (
+                <div className="analysis-container">
+                    <button 
+                        onClick={onClose}
+                        className="analysis-close-button"
+                        aria-label="Close analysis"
+                    >
+                        ×
+                    </button>
+                    <div className="space-y-6">
+                        {renderSection("Main Findings", analysis.main_findings)}
+                        {renderSection("Methodology", analysis.methodology)}
+                        {renderSection("Conclusions", analysis.conclusions)}
+                        {renderSection("Limitations", analysis.limitations)}
+                        {renderSection("Future Work", analysis.future_work)}
+                    </div>
+                </div>
+            );
+        };
+
+        // Компонент ImpactAnalysisResult
+        const ImpactAnalysisResult = ({ data, onClose }) => {
+            return (
+                <div className="impact-analysis bg-blue-50 rounded-lg p-4 relative">
+                    <button 
+                        onClick={onClose}
+                        className="absolute top-2 right-2 text-blue-600 hover:text-blue-800"
+                        aria-label="Закрыть анализ импакта"
+                    >
+                        ×
+                    </button>
+                    <h2 className="text-lg font-semibold text-blue-800 mb-3">Citation Impact Analysis</h2>
+                    <div className="prose prose-sm max-w-none">
+                        <div dangerouslySetInnerHTML={{ __html: data }} />
+                    </div>
+                </div>
+            );
+        };
+
+        // Обновленный компонент Paper с интеграцией анализа импакта
+        const Paper = ({ paper }) => {
+            const [isExpanded, setIsExpanded] = useState(false);
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+            const [isImpactAnalyzing, setIsImpactAnalyzing] = useState(false);
+            const [showAnalysis, setShowAnalysis] = useState(false);
+            const [showImpact, setShowImpact] = useState(false);
+            const [analysisData, setAnalysisData] = useState(null);
+            const [impactData, setImpactData] = useState(null);
+
+            const handleAnalysis = async (e) => {
+                e.stopPropagation();
+                setIsAnalyzing(true);
+                try {
+                    const response = await fetch('/analyze_paper', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(paper)
+                    });
+                    if (!response.ok) throw new Error('Analysis failed');
+                    const result = await response.json();
+                    setAnalysisData(result.raw);
+                    setShowAnalysis(true);
+                } catch (error) {
+                    console.error('Error analyzing paper:', error);
+                    alert('Failed to analyze paper. Please try again.');
+                } finally {
+                    setIsAnalyzing(false);
+                }
+            };
+
+            const handleImpactAnalysis = async (e) => {
+                e.stopPropagation();
+                setIsImpactAnalyzing(true);
+                try {
+                    const response = await fetch('/scientific_impact', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(paper)
+                    });
+                    if (!response.ok) throw new Error('Impact analysis failed');
+                    const result = await response.json();
+                    setImpactData(result.response);
+                    setShowImpact(true);
+                } catch (error) {
+                    console.error('Error analyzing paper impact:', error);
+                    alert('Failed to analyze paper impact. Please try again.');
+                } finally {
+                    setIsImpactAnalyzing(false);
+                }
+            };
+
+            return (
+                <div className="paper border rounded-lg p-4 mb-4">
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                            <h3 className="text-base font-medium mb-2">{paper.title}</h3>
+                            <p className="text-sm text-gray-600 mb-2">{paper.authors}</p>
+                        </div>
+                        <button
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="ml-4 text-gray-400 hover:text-gray-600"
+                            aria-label={isExpanded ? "Свернуть детали статьи" : "Развернуть детали статьи"}
+                        >
+                            {isExpanded ? "×" : "▼"}
+                        </button>
+                    </div>
+
+                    {isExpanded && (
+                        <>
+                            <div className="mt-4 space-y-3">
+                                <p className="text-sm">
+                                    <strong>Published:</strong> {paper.published}
+                                </p>
+                                <p className="text-sm">
+                                    <strong>Categories:</strong> {paper.categories}
+                                </p>
+                                <p className="text-sm">
+                                    <strong>Abstract:</strong> {paper.abstract}
+                                </p>
+                                <div className="flex gap-4 mt-2">
+                                    {paper.pdf_link && (
+                                        <a
+                                            href={paper.pdf_link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline text-sm"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            PDF
+                                        </a>
+                                    )}
+                                    {paper.arxiv_link && (
+                                        <a
+                                            href={paper.arxiv_link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline text-sm"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            arXiv
+                                        </a>
+                                    )}
+                                    <button
+                                        onClick={handleAnalysis}
+                                        disabled={isAnalyzing}
+                                        className="text-green-600 hover:underline text-sm disabled:opacity-50"
+                                        aria-label="Проанализировать статью"
+                                    >
+                                        {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                                    </button>
+                                    <button
+                                        onClick={handleImpactAnalysis}
+                                        disabled={isImpactAnalyzing}
+                                        className="text-blue-600 hover:underline text-sm disabled:opacity-50"
+                                        aria-label="Анализировать импакт статьи"
+                                    >
+                                        {isImpactAnalyzing ? 'Analyzing Impact...' : 'Impact'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {showAnalysis && analysisData && (
+                                <div className="mt-4 bg-green-50 rounded-lg p-4">
+                                    <AnalysisResult 
+                                        analysis={analysisData} 
+                                        onClose={() => setShowAnalysis(false)}
+                                    />
+                                </div>
+                            )}
+
+                            {showImpact && impactData && (
+                                <div className="mt-4">
+                                    <ImpactAnalysisResult 
+                                        data={impactData}
+                                        onClose={() => setShowImpact(false)}
+                                    />
+                                </div>
+                            )}
+
+                            {(isAnalyzing || isImpactAnalyzing) && (
+                                <div className="mt-4 text-center">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        // Компонент SearchResults
+        const SearchResults = ({ content }) => {
+            if (!content) return null;
+
+            // Проверка на наличие класса 'paper'
+            if (content.includes('class="paper')) {
+                try {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = content;
+
+                    const papers = Array.from(tempDiv.querySelectorAll('.paper')).map(paperDiv => ({
+                        title: paperDiv.querySelector('h3')?.textContent || '',
+                        authors: paperDiv.querySelector('p')?.textContent || '',
+                        published: paperDiv.querySelector('.published')?.textContent?.replace('Published:', '')?.trim() || '',
+                        categories: paperDiv.querySelector('.categories')?.textContent?.replace('Categories:', '')?.trim() || '',
+                        abstract: paperDiv.querySelector('.abstract')?.textContent?.replace('Abstract:', '')?.trim() || '',
+                        pdf_link: paperDiv.querySelector('a[href*="pdf"]')?.href,
+                        arxiv_link: paperDiv.querySelector('a:not([href*="pdf"])')?.href
+                    }));
+
+                    const queryText = tempDiv.querySelector('p strong')?.nextSibling?.textContent?.trim() || '';
+
+                    return (
+                        <div>
+                            <p className="mb-4 text-sm">
+                                <strong>Using query:</strong> {queryText}
+                            </p>
+                            {papers.map((paper, index) => (
+                                <Paper 
+                                    key={index} 
+                                    paper={paper}
+                                />
+                            ))}
+                        </div>
+                    );
+                } catch (error) {
+                    console.error('Error parsing search results:', error);
+                    return <MarkdownContent content={content} />;
+                }
+            }
+
+            return <MarkdownContent content={content} />;
+        };
+
+        // Компонент FilePreview
+        const FilePreview = ({ file, onClose }) => {
+            return (
+                <div className="document-preview bg-white rounded-lg shadow-sm border p-4 mb-4">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h4 className="font-medium text-gray-900 text-sm">{file.filename}</h4>
+                            <p className="text-sm text-gray-500">
+                                {Object.entries(file.metadata)
+                                    .map(([key, value]) => `${key}: ${value}`)
+                                    .join(' • ')}
+                            </p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="text-gray-400 hover:text-gray-600"
+                            aria-label="Close preview"
+                        >
+                            ×
+                        </button>
+                    </div>
+
+                    <div className="mt-4 border-t pt-4">
+                        <div className="text-sm" dangerouslySetInnerHTML={{ __html: file.display_html }} />
+                    </div>
+                </div>
+            );
+        };
+
+        // Компонент FileUploadButton
+        const FileUploadButton = ({ onFileUpload, isUploading }) => {
+            const fileInputRef = useRef(null);
+            const [dragActive, setDragActive] = useState(false);
+
+            const handleDrag = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.type === "dragenter" || e.type === "dragover") {
+                    setDragActive(true);
+                } else if (e.type === "dragleave") {
+                    setDragActive(false);
+                }
+            };
+
+            const handleDrop = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(false);
+
+                const files = e.dataTransfer.files;
+                if (files?.[0]) {
+                    await handleFileUpload(files[0]);
+                }
+            };
+
+            const handleFileUpload = async (file) => {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) throw new Error('Upload failed');
+
+                    const result = await response.json();
+                    onFileUpload(result);
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    alert('Failed to upload file. Please try again.');
+                }
+            };
+
+            return (
+                <div
+                    className={`relative ${dragActive ? 'drag-active' : ''}`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                >
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md"
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-50 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        aria-label="Upload file"
+                    >
+                        {isUploading ? 'Uploading...' : 'Upload File'}
+                    </button>
+                    {dragActive && (
+                        <div className="absolute inset-0 bg-blue-50 bg-opacity-50 rounded-md border-2 border-blue-300 border-dashed flex items-center justify-center">
+                            <p className="text-blue-600 text-sm">Drop file here</p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Компонент ChatInterface
+        const ChatInterface = () => {
+            const [messages, setMessages] = useState(JSON.parse(document.getElementById('initial-data').textContent));
+            const [input, setInput] = useState('');
+            const [numResults, setNumResults] = useState(5);
+            const [isLoading, setIsLoading] = useState(false);
+            const [uploadedFiles, setUploadedFiles] = useState([]);
+            const [isUploading, setIsUploading] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            useEffect(() => {
+                window.updateMessages = (newMessage) => {
+                    setMessages(prev => [...prev, newMessage]);
+                };
+
+                return () => {
+                    delete window.updateMessages;
+                };
+            }, []);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!input.trim()) return;
+
+                setIsLoading(true);
+                const newMessages = [...messages, { user: input }];
+                setMessages(newMessages);
+
+                try {
+                    const response = await fetch('/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            user_input: input,
+                            num_results: numResults
+                        }),
+                    });
+
+                    const data = await response.json();
+                    setMessages([...newMessages, { bot: data.response }]);
+                } catch (error) {
+                    console.error('Error:', error);
+                    setMessages([...newMessages, { 
+                        bot: 'Sorry, there was an error processing your request.' 
+                    }]);
+                } finally {
+                    setIsLoading(false);
+                    setInput('');
+                }
+            };
+
+            const handleFileUpload = (fileResult) => {
+                setUploadedFiles(prev => [...prev, fileResult]);
+                setMessages(prev => [...prev, {
+                    bot: fileResult.display_html,
+                    file: fileResult
+                }]);
+            };
+
+            const handleClearChat = async () => {
+                try {
+                    await fetch('/clear');
+                    setMessages([]);
+                    setUploadedFiles([]);
+                } catch (error) {
+                    console.error('Error clearing chat:', error);
+                }
+            };
+
+            return (
+                <div className="container mx-auto px-4 py-8 max-w-5xl">
+                    <div className="flex justify-between items-center mb-8">
+                        <div className="flex items-center gap-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-800">Researchify</h1>
+                                <p className="text-sm text-gray-600">Scientific Research Assistant</p>
+                            </div>
+                            <img src="/static/atom-logo.png" alt="Atom Logo" className="w-12 h-12 object-contain" />
+                        </div>
+                        <div className="flex gap-4">
+                            <FileUploadButton 
+                                onFileUpload={handleFileUpload}
+                                isUploading={isUploading}
+                            />
+                            <button
+                                onClick={handleClearChat}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-50"
+                                aria-label="Clear chat"
+                            >
+                                Clear Chat
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-lg">
+                        <div className="chat-container p-6">
+                            {messages.length === 0 && (
+                                <div className="message-bubble bg-gradient-to-r from-blue-50 to-indigo-50 text-gray-800 rounded-lg p-6 mb-4">
+                                    <h2 className="text-lg font-semibold mb-3">
+                                        👋 Welcome to Scientific Research Assistant!
+                                    </h2>
+                                    <p className="mb-4 text-sm">I can help you with:</p>
+                                    <ul className="list-disc pl-5 mb-4 text-sm">
+                                        <li>Searching scientific papers across multiple sources</li>
+                                        <li>Explaining complex scientific concepts</li>
+                                        <li>Summarizing research papers</li>
+                                        <li>Analyzing research trends</li>
+                                        <li>Answering questions about papers</li>
+                                        <li>Processing and analyzing uploaded documents</li>
+                                    </ul>
+                                    <div className="space-y-2 text-gray-600 text-sm">
+                                        <p className="mb-2">Try asking something like:</p>
+                                        <p>"Search for recent papers about quantum computing"</p>
+                                        <p>"Explain how CRISPR works based on recent research"</p>
+                                        <p>"What are the latest developments in machine learning?"</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <>
+                            {messages.map((message, index) => (
+                                <div
+                                    key={index}
+                                    className={`mb-4 ${message.user ? 'text-right' : 'text-left'}`}
+                                >
+                                    <div
+                                        className={`inline-block max-w-[80%] rounded-lg px-4 py-2 ${
+                                            message.user
+                                            ? 'bg-blue-600 text-white'
+                                            : message.type === 'analysis'
+                                            ? 'analysis-message'
+                                            : 'bg-gray-100 text-gray-800'
+                                        }`}
+                                    >
+                                        {message.user ? (
+                                            <div className="text-sm">{message.user}</div>
+                                        ) : message.type === 'analysis' ? (
+                                            <AnalysisResult 
+                                                analysis={message.raw} 
+                                                onClose={() => {
+                                                    setMessages(prev => prev.filter((_, i) => i !== index));
+                                                }}
+                                            />
+                                        ) : message.file ? (
+                                            <FilePreview
+                                                file={message.file}
+                                                onClose={() => {
+                                                    setMessages(prev => prev.filter((_, i) => i !== index));
+                                                    setUploadedFiles(prev => prev.filter(f => f.filename !== message.file.filename));
+                                                }}
+                                            />
+                                        ) : (
+                                            <SearchResults content={message.bot} />
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+
+                            {isLoading && (
+                                <div className="typing-indicator">
+                                    <div className="dot"></div>
+                                    <div className="dot"></div>
+                                    <div className="dot"></div>
+                                </div>
+                            )}
+
+                            <div ref={messagesEndRef} />
+                            </>
+                        </div>
+
+                        <div className="border-t p-4">
+                            <div className="mb-4">
+                                <label className="block text-sm text-gray-600 mb-2" htmlFor="num-results">
+                                    Number of results (1-50):
+                                </label>
+                                <input
+                                    id="num-results"
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    value={numResults}
+                                    onChange={(e) => setNumResults(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
+                                    className="w-20 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                />
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="flex gap-4">
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Enter your message..."
+                                    className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                    aria-label="User input"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+                                    aria-label="Send message"
+                                >
+                                    {isLoading ? "Sending..." : "Send"}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Рендерим приложение
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+            <React.StrictMode>
+                <ChatInterface />
+            </React.StrictMode>
+        );
+    </script>
+    {% endraw %}
+</body>
+</html>
