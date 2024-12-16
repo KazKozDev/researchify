@@ -1,110 +1,31 @@
-# Python
+# Python basics
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
-venv/
 env/
-ENV/
+venv/
 .env
-.venv
-env.bak/
-venv.bak/
 
 # IDE
 .idea/
 .vscode/
 *.swp
-*.swo
-.project
-.pydevproject
-.settings/
-*.sublime-workspace
-*.sublime-project
 
-# Project specific
-uploads/
-vector_store/
-paper_cache/
-*.index
-metadata.pkl
-app.log
-flask_session/
-*.db
-
-# Models and large files
-*.bin
-*.vec
-*.model
-*.pkl
-models/
-embeddings/
-
-# Temporary files
-tmp/
-temp/
-.temp/
-*.tmp
-
-# System
-.DS_Store
-Thumbs.db
-*.bak
-*.swp
-*.swo
-
-# Test coverage
-.coverage
-coverage.xml
-htmlcov/
-.tox/
-.nox/
-.pytest_cache/
-nosetests.xml
-coverage/
-
-# Documentation
-docs/_build/
-site/
+# Project specific directories (auto-created by script)
+uploads/              # Created in app.py for file uploads
+paper_cache/          # Created in app.py for paper analysis cache
+vector_store/         # Created in app.py for FAISS indexes
+flask_session/        # Created by Flask for session management
+logs/                 # For log files
+app.log              # Main log file
+*.index              # FAISS index files
+metadata.pkl         # Vector store metadata
 
 # Security
-*.pem
-*.key
-*.cert
 .env.local
 .env.*.local
 
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Dependencies
-node_modules/
-jspm_packages/
-bower_components/
-
-# Distribution
-dist/
-build/
-public/dist/
+# System files
+.DS_Store
+Thumbs.db
