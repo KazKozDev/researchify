@@ -4,6 +4,11 @@
 ![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
 ![Flask](https://img.shields.io/badge/flask-2.0%2B-lightgrey)
 ![FAISS](https://img.shields.io/badge/FAISS-1.7%2B-orange)
+![Ollama](https://img.shields.io/badge/ollama-1.0.0-brightgreen)
+![Gemma](https://img.shields.io/badge/gemma-2.9B-purple)
+![RAG](https://img.shields.io/badge/RAG-enabled-success)
+![arXiv](https://img.shields.io/badge/arXiv-API-red)
+![OpenAlex](https://img.shields.io/badge/OpenAlex-API-green)
 
 # 🔬 Researchify - Scientific Research Assistant
 
