@@ -203,3 +203,7 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 - FAISS for vector search capabilities
 - Sentence Transformers for embeddings
 - Ollama and Gemma-2B for LLM support
+
+---
+<div align="center">
+Made with ❤️ by KazKozDev
