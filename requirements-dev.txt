@@ -1,0 +1,38 @@
+# Testing
+pytest>=7.0.0
+pytest-cov>=2.12.0
+pytest-mock>=3.6.1
+pytest-asyncio>=0.18.0
+coverage>=6.0.0
+
+# Linting and Formatting
+black>=22.3.0
+flake8>=4.0.0
+flake8-docstrings>=1.6.0
+flake8-import-order>=0.18.1
+pylint>=2.12.0
+mypy>=0.910
+
+# Type Checking
+types-requests>=2.28.0
+types-PyYAML>=6.0.0
+types-python-dateutil>=2.8.0
+
+# Documentation
+Sphinx>=4.5.0
+sphinx-rtd-theme>=1.0.0
+sphinx-autodoc-typehints>=1.12.0
+
+# Development Tools
+pre-commit>=2.17.0
+ipython>=8.0.0
+jupyter>=1.0.0
+notebook>=6.4.0
+
+# Debug Tools
+debugpy>=1.5.1
+ipdb>=0.13.9
+
+# Security Testing
+bandit>=1.7.0
+safety>=1.10.3
