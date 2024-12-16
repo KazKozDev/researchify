@@ -206,4 +206,4 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 <div align="center">
-Made with ❤️ by KazKozDev
+From Barcelona with ❤️ by KazKozDev
