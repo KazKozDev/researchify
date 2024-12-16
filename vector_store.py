@@ -10,7 +10,6 @@ from dataclasses import dataclass, asdict
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import logging
-import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,30 +32,6 @@ class Document:
         d = asdict(self)
         d.pop('embedding', None)
         return d
-
-class QueryParser:
-    """Parser for complex search queries."""
-    
-    @staticmethod
-    def parse_field_query(query: str) -> Dict[str, List[str]]:
-        """Parse field-specific query parts (ti:, abs:, etc)."""
-        field_patterns = {
-            'title': r'ti:"([^"]+)"',
-            'abstract': r'abs:"([^"]+)"',
-            'category': r'cat:([^\s]+)',
-        }
-        
-        fields = {}
-        for field, pattern in field_patterns.items():
-            matches = re.finditer(pattern, query)
-            fields[field] = [match.group(1) for match in matches]
-            
-        return fields
-
-    @staticmethod
-    def split_boolean_query(query: str) -> List[str]:
-        """Split query by OR operators."""
-        return [q.strip() for q in query.split(' OR ')]
 
 class VectorStore:
     def __init__(
@@ -151,7 +126,7 @@ class VectorStore:
         filter_func: Optional[callable] = None
     ) -> List[Dict]:
         """
-        Search for similar documents using vector similarity.
+        Search for similar documents.
         
         Args:
             query: Search query
@@ -186,65 +161,6 @@ class VectorStore:
                 break
         
         return results
-
-    def search_complex(
-        self,
-        query: str,
-        k: int = 5,
-        filter_func: Optional[callable] = None
-    ) -> List[Dict]:
-        """
-        Handle complex search queries with field specifications.
-        
-        Args:
-            query: Complex search query (e.g., 'ti:"black holes" OR abs:"quantum gravity"')
-            k: Number of results to return
-            filter_func: Optional function to filter results
-        """
-        parsed_fields = QueryParser.parse_field_query(query)
-        subqueries = QueryParser.split_boolean_query(query)
-        
-        all_results = []
-        for subquery in subqueries:
-            # Generate embedding for this subquery
-            clean_text = re.sub(r'(ti:|abs:|cat:)"?[^"]+"?', '', subquery).strip()
-            if clean_text:
-                results = self.search(clean_text, k=k, filter_func=filter_func)
-                all_results.extend(results)
-            
-            # Search by specific fields
-            fields = QueryParser.parse_field_query(subquery)
-            for field, values in fields.items():
-                for value in values:
-                    field_results = []
-                    if field == 'title':
-                        field_results = [doc for doc in self.metadata.values() 
-                                       if value.lower() in doc.title.lower()]
-                    elif field == 'abstract':
-                        field_results = [doc for doc in self.metadata.values() 
-                                       if value.lower() in doc.abstract.lower()]
-                    elif field == 'category':
-                        field_results = [doc for doc in self.metadata.values() 
-                                       if value.lower() in doc.categories.lower()]
-                    
-                    # Convert to dict format and add scores
-                    field_results = [
-                        {**doc.to_dict(), 'score': 1.0}
-                        for doc in field_results
-                    ]
-                    all_results.extend(field_results)
-        
-        # Deduplicate results based on document ID
-        seen_ids = set()
-        unique_results = []
-        for result in all_results:
-            if result['id'] not in seen_ids:
-                seen_ids.add(result['id'])
-                unique_results.append(result)
-        
-        # Sort by score and limit to k results
-        unique_results.sort(key=lambda x: x['score'], reverse=True)
-        return unique_results[:k]
     
     def _save_state(self) -> None:
         """Save the index and metadata to disk."""
@@ -313,7 +229,7 @@ class RAGSystem:
         
         # Add to vector store
         self.vector_store.add_documents([doc])
-
+        
     def query(
         self,
         query: str,
@@ -322,10 +238,10 @@ class RAGSystem:
         date_filter: Optional[tuple] = None
     ) -> List[Dict]:
         """
-        Enhanced query method that handles both simple and complex queries.
+        Query the RAG system.
         
         Args:
-            query: Search query (simple or complex)
+            query: Search query
             k: Number of results to return
             category_filter: Optional category to filter by
             date_filter: Optional tuple of (start_date, end_date) for filtering
@@ -345,55 +261,35 @@ class RAGSystem:
             
             return True
         
-        # Check if this is a complex query
-        if any(op in query for op in ['ti:', 'abs:', 'cat:', ' OR ']):
-            return self.vector_store.search_complex(
-                query, 
-                k=k, 
-                filter_func=filter_func if (category_filter or date_filter) else None
-            )
-        else:
-            return self.vector_store.search(
-                query, 
-                k=k, 
-                filter_func=filter_func if (category_filter or date_filter) else None
-            )
+        return self.vector_store.search(query, k=k, filter_func=filter_func if (category_filter or date_filter) else None)
 
-# Example usage
-if __name__ == "__main__":
-    # Initialize the systems
-    vector_store = VectorStore()
-    rag_system = RAGSystem(vector_store)
+# Usage example:
+"""
+# Initialize the systems
+vector_store = VectorStore()
+rag_system = RAGSystem(vector_store)
 
-    # Add example paper
-    paper_data = {
-        'arxiv_id': '2024.12345',
-        'title': 'Example Paper on Black Holes',
-        'authors': 'John Doe, Jane Smith',
-        'abstract': 'This is an example abstract about black holes...',
-        'pdf_link': 'https://arxiv.org/pdf/2024.12345.pdf',
-        'arxiv_link': 'https://arxiv.org/abs/2024.12345',
-        'published': '2024-03-15',
-        'categories': 'astro-ph.HE'
-    }
-    rag_system.add_paper(paper_data)
+# Add papers
+paper_data = {
+    'arxiv_id': '2024.12345',
+    'title': 'Example Paper',
+    'authors': 'John Doe, Jane Smith',
+    'abstract': 'This is an example abstract...',
+    'pdf_link': 'https://arxiv.org/pdf/2024.12345.pdf',
+    'arxiv_link': 'https://arxiv.org/abs/2024.12345',
+    'published': '2024-03-15',
+    'categories': 'cs.AI, cs.LG'
+}
+rag_system.add_paper(paper_data)
 
-    # Example queries
-    queries = [
-        'black holes',  # Simple query
-        'ti:"black hole" OR abs:"quantum gravity"',  # Complex query
-        'ti:"supermassive black hole" OR ti:"stellar black hole"',  # Field-specific query
-    ]
-
-    for query in queries:
-        print(f"\nExecuting query: {query}")
-        results = rag_system.query(
-            query=query,
-            k=5,
-            category_filter=None,
-            date_filter=None
-        )
-        print(f"Found {len(results)} results")
-        for i, result in enumerate(results, 1):
-            print(f"\n{i}. {result['title']}")
-            print(f"   Score: {result['score']:.2f}")
+# Query the system
+results = rag_system.query(
+    query="machine learning applications",
+    k=5,
+    category_filter="cs.AI",
+    date_filter=(
+        datetime(2024, 1, 1),
+        datetime(2024, 12, 31)
+    )
+)
+"""

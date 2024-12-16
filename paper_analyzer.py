@@ -1,8 +1,8 @@
 import os
-import fitz  # PyMuPDF
+import fitz
 import requests
 import tempfile
-import ollama  # Добавлен импорт ollama
+import ollama
 from typing import Dict, Optional, List
 import logging
 from dataclasses import dataclass
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PaperAnalysis:
-    """Класс данных для хранения результатов анализа статьи."""
+    """Data class for storing paper analysis results."""
     paper_id: str
     title: str
     sections: Dict[str, str]
@@ -25,7 +25,7 @@ class PaperAnalysis:
     limitations: Optional[str]
     future_work: Optional[str]
     analysis_date: datetime
-    
+
     def to_dict(self):
         return {
             'paper_id': self.paper_id,
@@ -44,17 +44,17 @@ class PaperAnalyzer:
         self,
         vector_store: VectorStore,
         rag_system: RAGSystem,
-        model_name: str = "gemma2",
+        model_name: str = "gemma2:9b",
         cache_dir: str = "paper_cache"
     ):
         """
-        Инициализация анализатора статей.
+        Initialize the paper analyzer.
         
-        Аргументы:
-            vector_store: Инициализированный экземпляр VectorStore
-            rag_system: Инициализированный экземпляр RAGSystem
-            model_name: Название используемой LLM модели
-            cache_dir: Директория для кэширования загруженных статей
+        Arguments:
+            vector_store: An initialized instance of VectorStore
+            rag_system: An initialized instance of RAGSystem
+            model_name: Name of the LLM model to use
+            cache_dir: Directory for caching downloaded papers
         """
         self.vector_store = vector_store
         self.rag_system = rag_system
@@ -63,16 +63,16 @@ class PaperAnalyzer:
         os.makedirs(cache_dir, exist_ok=True)
         
     def _download_pdf(self, url: str) -> Optional[str]:
-        """Загрузка PDF по URL и возврат пути к временному файлу."""
+        """Download PDF from a URL and return the path to the temporary file."""
         try:
-            # Создаем хэш URL для кэширования
+            # Create a hash of the URL for caching
             cache_file = os.path.join(self.cache_dir, f"{hash(url)}.pdf")
             
-            # Сначала проверяем кэш
+            # Check cache first
             if os.path.exists(cache_file):
                 return cache_file
             
-            # Загружаем, если нет в кэше
+            # Download if not in cache
             response = requests.get(url)
             response.raise_for_status()
             
@@ -82,11 +82,11 @@ class PaperAnalyzer:
             return cache_file
             
         except Exception as e:
-            logger.error(f"Ошибка загрузки PDF: {e}")
+            logger.error(f"Error downloading PDF: {e}")
             return None
     
     def _extract_text_from_pdf(self, pdf_path: str) -> Optional[Dict[str, str]]:
-        """Извлечение текста из PDF и организация по разделам."""
+        """Extract text from PDF and organize it by sections."""
         try:
             doc = fitz.open(pdf_path)
             sections = {}
@@ -96,7 +96,7 @@ class PaperAnalyzer:
             for page in doc:
                 text = page.get_text()
                 
-                # Простое определение разделов на основе общих заголовков
+                # Simple section detection based on common headers
                 section_headers = [
                     "Abstract", "Introduction", "Related Work",
                     "Methodology", "Methods", "Experiments",
@@ -105,11 +105,11 @@ class PaperAnalyzer:
                 ]
                 
                 for line in text.split('\n'):
-                    # Проверяем, может ли строка быть заголовком раздела
+                    # Check if the line can be a section header
                     clean_line = line.strip().lower()
                     for header in section_headers:
                         if header.lower() in clean_line and len(clean_line) < 50:
-                            # Сохраняем предыдущий раздел
+                            # Save the previous section
                             if current_text:
                                 sections[current_section] = '\n'.join(current_text).strip()
                             current_section = header
@@ -118,28 +118,28 @@ class PaperAnalyzer:
                     else:
                         current_text.append(line)
             
-            # Сохраняем последний раздел
+            # Save the last section
             if current_text:
                 sections[current_section] = '\n'.join(current_text).strip()
             
             return sections
             
         except Exception as e:
-            logger.error(f"Ошибка извлечения текста из PDF: {e}")
+            logger.error(f"Error extracting text from PDF: {e}")
             return None
     
     def _analyze_section(self, section_name: str, section_text: str) -> str:
-        """Анализ определенного раздела статьи с использованием LLM."""
+        """Analyze a specific section of the paper using LLM."""
         prompts = {
-            "Abstract": "Обобщите ключевые моменты этой аннотации ясно и кратко.",
-            "Introduction": "Определите основные исследовательские вопросы и цели, представленные во введении.",
-            "Methodology": "Объясните ключевые методологические подходы и техники, использованные в этом исследовании.",
-            "Results": "Каковы основные выводы и результаты, представленные в этом разделе?",
-            "Discussion": "Каковы ключевые последствия и интерпретации результатов?",
-            "Conclusion": "Обобщите основные выводы и их значимость."
+            "Abstract": "Summarize the key points of this abstract clearly and concisely.",
+            "Introduction": "Identify the main research questions and objectives presented in the introduction.",
+            "Methodology": "Explain the key methodological approaches and techniques used in this study.",
+            "Results": "What are the main findings and results presented in this section?",
+            "Discussion": "What are the key implications and interpretations of the results?",
+            "Conclusion": "Summarize the main conclusions and their significance."
         }
         
-        prompt = prompts.get(section_name, f"Обобщите ключевые моменты из раздела {section_name}.")
+        prompt = prompts.get(section_name, f"Summarize the key points from the {section_name} section.")
         
         try:
             response = ollama.generate(
@@ -148,11 +148,11 @@ class PaperAnalyzer:
             )
             return response['response'].strip()
         except Exception as e:
-            logger.error(f"Ошибка анализа раздела: {e}")
-            return f"Ошибка анализа раздела {section_name}."
+            logger.error(f"Error analyzing section: {e}")
+            return f"Error analyzing the {section_name} section."
     
     def _extract_main_findings(self, sections: Dict[str, str]) -> List[str]:
-        """Извлечение основных результатов из статьи."""
+        """Extract the main findings from the paper."""
         relevant_sections = [
             sections.get('Abstract', ''),
             sections.get('Results', ''),
@@ -166,48 +166,48 @@ class PaperAnalyzer:
             response = ollama.generate(
                 model=self.model_name,
                 prompt=(
-                    "На основе следующего текста перечислите основные результаты и вклад "
-                    f"этой исследовательской работы:\n\n{combined_text}\n\nОсновные результаты:"
+                    "Based on the following text, list the main findings and contributions "
+                    f"of this research work:\n\n{combined_text}\n\nMain Findings:"
                 )
             )
             
             findings = response['response'].strip().split('\n')
             return [f.strip('- ') for f in findings if f.strip()]
         except Exception as e:
-            logger.error(f"Ошибка извлечения результатов: {e}")
-            return ["Ошибка извлечения основных результатов"]
+            logger.error(f"Error extracting findings: {e}")
+            return ["Error extracting main findings"]
     
     def analyze_paper(self, pdf_url: str, paper_metadata: Dict) -> Optional[PaperAnalysis]:
         """
-        Анализ научной статьи по её PDF URL.
+        Analyze a scientific paper using its PDF URL.
         
-        Аргументы:
-            pdf_url: URL PDF-файла статьи
-            paper_metadata: Словарь с метаданными статьи
+        Arguments:
+            pdf_url: URL of the paper's PDF file
+            paper_metadata: Dictionary containing the paper's metadata
             
-        Возвращает:
-            Объект PaperAnalysis в случае успеха, None в случае ошибки
+        Returns:
+            PaperAnalysis object on success, None on failure
         """
         try:
-            # Загрузка PDF
+            # Download PDF
             pdf_path = self._download_pdf(pdf_url)
             if not pdf_path:
                 return None
             
-            # Извлечение текста и разделов
+            # Extract text and sections
             sections = self._extract_text_from_pdf(pdf_path)
             if not sections:
                 return None
             
-            # Анализ каждого раздела
+            # Analyze each section
             analyzed_sections = {}
             for section_name, section_text in sections.items():
                 analyzed_sections[section_name] = self._analyze_section(section_name, section_text)
             
-            # Извлечение основных результатов
+            # Extract main findings
             main_findings = self._extract_main_findings(sections)
             
-            # Создание документа для векторного хранилища
+            # Create a document for the vector store
             doc = Document(
                 id=paper_metadata.get('arxiv_id', str(datetime.now().timestamp())),
                 title=paper_metadata['title'],
@@ -217,23 +217,23 @@ class PaperAnalyzer:
                 arxiv_link=paper_metadata.get('arxiv_link'),
                 published=paper_metadata['published'],
                 categories=paper_metadata.get('categories', ''),
-                embedding=None  # Будет сгенерирован векторным хранилищем
+                embedding=None  # To be generated by the vector store
             )
             
-            # Добавление полного текста в векторное хранилище
+            # Add full text to the vector store
             full_text = '\n'.join(sections.values())
             doc_with_full_text = doc
             doc_with_full_text.abstract = full_text
             self.vector_store.add_documents([doc_with_full_text])
             
-            # Создание объекта анализа
+            # Create the analysis object
             analysis = PaperAnalysis(
                 paper_id=doc.id,
                 title=doc.title,
                 sections=analyzed_sections,
                 main_findings=main_findings,
-                methodology=analyzed_sections.get('Methodology', 'Не найдено'),
-                conclusions=analyzed_sections.get('Conclusion', 'Не найдено'),
+                methodology=analyzed_sections.get('Methodology', 'Not found'),
+                conclusions=analyzed_sections.get('Conclusion', 'Not found'),
                 limitations=self._extract_limitations(sections),
                 future_work=self._extract_future_work(sections),
                 analysis_date=datetime.now()
@@ -242,11 +242,11 @@ class PaperAnalyzer:
             return analysis
             
         except Exception as e:
-            logger.error(f"Ошибка анализа статьи: {e}")
+            logger.error(f"Error analyzing paper: {e}")
             return None
     
     def _extract_limitations(self, sections: Dict[str, str]) -> Optional[str]:
-        """Извлечение ограничений, обсуждаемых в статье."""
+        """Extract the limitations discussed in the paper."""
         relevant_sections = [
             sections.get('Discussion', ''),
             sections.get('Conclusion', '')
@@ -256,17 +256,17 @@ class PaperAnalyzer:
             response = ollama.generate(
                 model=self.model_name,
                 prompt=(
-                    "Какие ограничения и проблемы обсуждаются в этой статье? "
-                    f"Текст: {' '.join(relevant_sections)}\n\nОграничения:"
+                    "What limitations and issues are discussed in this paper? "
+                    f"Text: {' '.join(relevant_sections)}\n\nLimitations:"
                 )
             )
             return response['response'].strip()
         except Exception as e:
-            logger.error(f"Ошибка извлечения ограничений: {e}")
+            logger.error(f"Error extracting limitations: {e}")
             return None
     
     def _extract_future_work(self, sections: Dict[str, str]) -> Optional[str]:
-        """Извлечение предложений по будущей работе из статьи."""
+        """Extract future work suggestions from the paper."""
         relevant_sections = [
             sections.get('Discussion', ''),
             sections.get('Conclusion', '')
@@ -276,11 +276,11 @@ class PaperAnalyzer:
             response = ollama.generate(
                 model=self.model_name,
                 prompt=(
-                    "Какие направления будущих исследований предлагаются в этой статье? "
-                    f"Текст: {' '.join(relevant_sections)}\n\nБудущая работа:"
+                    "What future research directions are proposed in this paper? "
+                    f"Text: {' '.join(relevant_sections)}\n\nFuture Work:"
                 )
             )
             return response['response'].strip()
         except Exception as e:
-            logger.error(f"Ошибка извлечения предложений по будущей работе: {e}")
+            logger.error(f"Error extracting future work suggestions: {e}")
             return None

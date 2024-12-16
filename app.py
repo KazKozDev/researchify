@@ -23,7 +23,7 @@ from datetime import datetime
 import logging
 from werkzeug.utils import secure_filename
 
-# Настройка логирования
+# Logging Configuration
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -40,9 +40,9 @@ app.config['SESSION_TYPE'] = 'filesystem'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['PAPER_ANALYSIS_CACHE'] = {}
-app.config['MAX_CACHE_SIZE'] = 100  # Максимальное количество кэшированных анализов
+app.config['MAX_CACHE_SIZE'] = 100  # Maximum number of cached analyses
 
-# Создаем папки, если их нет
+# Create folders if they do not exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('paper_cache', exist_ok=True)
 os.makedirs('vector_store', exist_ok=True)
@@ -66,15 +66,16 @@ MIME_TYPES = {
 ALLOWED_EXTENSIONS = set(MIME_TYPES.keys())
 
 def get_mime_type(filename):
-    """Определяет MIME-тип файла по расширению."""
+    """Determines the MIME type of a file based on its extension."""
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
     return MIME_TYPES.get(ext, 'application/octet-stream')
 
 def allowed_file(filename):
+    """Checks if the file has an allowed extension."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Инициализация компонентов
+# Initialize components
 vector_store = VectorStore()
 rag_system = RAGSystem(vector_store)
 research_bot = ResearchBot(vector_store, rag_system)
@@ -92,7 +93,7 @@ paper_analyzer = PaperAnalyzer(
 # Initialize CitationsAnalyzer
 citations_analyzer = CitationsAnalyzer()
 
-# Определяем системный промпт
+# Define system prompt
 SYSTEM_PROMPT = """
 You are Researchify, an AI research assistant created by Artem Kazakov Kozlov, designed to help users find and understand scientific papers across all academic fields while maintaining clear communication and academic integrity. When searching for papers, identify key terms, use academic databases, and present results with title, authors, date, and a brief summary explaining relevance to the query. Present all information in order of relevance, using clear language and complete citations, while offering to refine searches if needed. Maintain a professional tone, respect user privacy, and acknowledge any limitations in your knowledge or uncertainty in research findings.
 
@@ -115,12 +116,12 @@ def generate_response(user_input):
     conversation += f"User: {user_input}\nResearchify:"
 
     try:
-        response = ollama.generate(model='gemma2', prompt=conversation)
+        response = ollama.generate(model='gemma2:9b', prompt=conversation)
         assistant_message = response['response'].strip()
         return assistant_message
     except Exception as e:
         logger.error(f"Error generating response with Ollama: {str(e)}")
-        return "Извините, я не могу сейчас ответить на ваш вопрос."
+        return "Sorry, I cannot answer your question right now."
 
 def generate_response_with_context(user_input: str, system_prompt: str) -> str:
     """Generates a response considering the context of uploaded files."""
@@ -134,7 +135,7 @@ def generate_response_with_context(user_input: str, system_prompt: str) -> str:
     conversation += f"User: {user_input}\nAssistant:"
 
     try:
-        response = ollama.generate(model='gemma2', prompt=conversation)
+        response = ollama.generate(model='gemma2:9b', prompt=conversation)
         return response['response'].strip()
     except Exception as e:
         logger.error(f"Error generating response: {str(e)}")
@@ -142,57 +143,102 @@ def generate_response_with_context(user_input: str, system_prompt: str) -> str:
 
 def process_user_input(user_input):
     """Processes user input, distinguishes between research intent, search intent, and general conversation."""
-    # Если это исследовательский запрос
-    if any(cmd in user_input.lower() for cmd in [
+    # If it's a search query
+    if any(word in user_input.lower() for word in ['search', 'find', 'look for', 'поиск', 'найди', 'искать']):
+        # Extract search query
+        search_query = user_input.lower()
+        for word in ['search', 'find', 'look for', 'поиск', 'найди', 'искать']:
+            search_query = search_query.replace(word, '')
+        search_query = search_query.strip()
+        
+        # Perform immediate search with basic query
+        results = get_arxiv_results(f'all:"{search_query}"', max_results=5)
+        
+        # Parallelly generate improved query suggestions
+        try:
+            improved_query = generate_improved_query(search_query)
+            query_suggestion = f"\n\nSuggested refined queries:\n{improved_query}\n\nType 'refine' followed by the number of the query you'd like to use, or enter a new search query."
+        except Exception as e:
+            logger.error(f"Error generating improved query: {str(e)}")
+            query_suggestion = ""
+        
+        # Format results and add improvement suggestions
+        formatted_results = format_search_results(results, f'all:"{search_query}"')
+        return {
+            'type': 'search',
+            'results': formatted_results + query_suggestion,
+            'original_query': search_query
+        }
+    
+    # If it's a request to refine the search
+    elif user_input.lower().startswith('refine'):
+        try:
+            query_num = int(user_input.split()[-1])
+            if 'pending_queries' in session and len(session['pending_queries']) >= query_num:
+                refined_query = session['pending_queries'][query_num - 1]
+                results = get_arxiv_results(refined_query, max_results=5)
+                return {
+                    'type': 'search',
+                    'results': format_search_results(results, refined_query),
+                    'original_query': refined_query
+                }
+        except (ValueError, IndexError):
+            return {
+                'type': 'chat',
+                'message': "Please specify a valid query number or enter a new search query."
+            }
+            
+    # If it's a research query
+    elif any(cmd in user_input.lower() for cmd in [
         'find papers', 'summarize papers', 'compare papers',
         'latest research', 'explain', 'research', 'study',
         'найти статьи', 'обобщить статьи', 'сравнить статьи',
         'последние исследования', 'объяснить'
     ]):
         return {'type': 'research', 'query': user_input}
-    # Если это поисковый запрос
-    elif any(word in user_input.lower() for word in ['search', 'find', 'look for', 'поиск', 'найди', 'искать']):
-        search_query = user_input.lower()
-        for word in ['search', 'find', 'look for', 'поиск', 'найди', 'искать']:
-            search_query = search_query.replace(word, '')
-        search_query = search_query.strip()
-        final_query = generate_arxiv_query(search_query)
-        return {'type': 'search', 'query': final_query}
+    
+    # Regular chat
     else:
         return {'type': 'chat', 'message': user_input}
 
-def generate_arxiv_query(input_text):
-    """Generates an arXiv API search query based on user text."""
-    input_text = input_text.strip()
-    acronym_expansions = {
-        "LLM": "large language model",
-    }
+def generate_improved_query(search_query: str) -> str:
+    """Generates improved search query suggestions using Gemma."""
+    prompt = f"""Generate 3 improved arXiv search queries for: "{search_query}"
 
-    if input_text.upper() in acronym_expansions:
-        expansion = acronym_expansions[input_text.upper()]
-        return f'abs:"{expansion}" OR ti:"{expansion}"'
-
-    prompt = SYSTEM_PROMPT + f"""
-Generate an arXiv search query based on the following description: "{input_text}"
-
-Use standard search format with prefixes:
+Use standard search format with prefixes and combine them thoughtfully:
 - ti: for title search
 - abs: for abstract search
 - au: for author search
 - cat: for category search
 
-Example query: abs:"deep learning" AND cat:cs.LG
+Format your response as a numbered list of 3 queries with brief explanations.
 
-Query:
-"""
+Example:
+1. ti:"deep learning" AND cat:cs.LG (Focused on titles in machine learning)
+2. abs:"deep learning" AND abs:"computer vision" (Papers mentioning both concepts)
+3. ti:"deep learning" AND cat:cs.CV AND cat:cs.LG (Cross-domain ML/CV papers)"""
+
     try:
-        response = ollama.generate(model='gemma2', prompt=prompt)
-        query = response['response'].strip()
-        logger.info(f"Generated arXiv query: {query}")
-        return query
+        response = ollama.generate(model='gemma2:9b', prompt=prompt)
+        # Store generated queries in session for later reference
+        queries = parse_queries_from_response(response['response'])
+        session['pending_queries'] = queries
+        return response['response'].strip()
     except Exception as e:
-        logger.error(f"Error generating arXiv query with Ollama: {str(e)}")
-        return f'all:"{input_text}"'
+        logger.error(f"Error generating improved queries: {str(e)}")
+        return "Could not generate improved queries"
+
+def parse_queries_from_response(response: str) -> List[str]:
+    """Extracts actual queries from the formatted response."""
+    queries = []
+    for line in response.split('\n'):
+        if line.strip() and line[0].isdigit():
+            # Extract the query part before the explanation
+            query_part = line.split('(')[0].strip()
+            # Remove the number prefix and any trailing spaces
+            query = ' '.join(query_part.split()[1:])
+            queries.append(query)
+    return queries
 
 def get_arxiv_results(query, max_results=5):
     """Fetches search results from arXiv API and stores them in the RAG system."""
@@ -266,7 +312,7 @@ def get_arxiv_results(query, max_results=5):
 
                 results.append(paper_data)
                 
-                # Сохраняем статью в RAG системе
+                # Save the paper in the RAG system
                 try:
                     rag_system.add_paper(paper_data)
                 except Exception as e:
@@ -359,7 +405,6 @@ def format_section(title: str, content: Union[str, List[str]], is_list: bool = F
 def format_search_results(results, query):
     """Formats search results into HTML with proper meta data."""
     if not results:
-
         return "<p>No results found for your query.</p>"
         
     html = f"<p><strong>Using query:</strong> {query}</p><h2>Search Results:</h2>"
@@ -385,7 +430,7 @@ def format_search_results(results, query):
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Обработка загрузки файла."""
+    """Handles file uploads."""
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     
@@ -397,10 +442,10 @@ def upload_file():
         return jsonify({'error': f'File type not allowed. Supported types: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
     
     try:
-        # Обрабатываем файл через DocumentProcessor
+        # Process the file through DocumentProcessor
         result = document_processor.process_file(file)
         
-        # Добавляем информацию о файле в сессию
+        # Add file information to the session
         if 'uploaded_files' not in session:
             session['uploaded_files'] = []
         session['uploaded_files'].append({
@@ -414,15 +459,15 @@ def upload_file():
     except Exception as e:
         logger.error(f"Error processing upload: {str(e)}")
         return jsonify({'error': str(e)}), 500
-    
+
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    """Отдача загруженных файлов."""
+    """Serves uploaded files."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/analyze_paper', methods=['POST'])
 def analyze_paper():
-    """Handle paper analysis requests and format results for chat display."""
+    """Handles paper analysis requests and formats results for chat display."""
     try:
         paper_data = request.get_json()
         
@@ -479,7 +524,7 @@ def analyze_paper():
 
 @app.route('/scientific_impact', methods=['POST'])
 def analyze_scientific_impact():
-    """Handle scientific impact analysis requests."""
+    """Handles scientific impact analysis requests."""
     try:
         paper_data = request.get_json()
         
@@ -632,11 +677,9 @@ def format_venues(by_journal: Dict, total: int) -> str:
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    """Handle main page requests."""
+    """Handles main page requests."""
     if 'chat_history' not in session:
         session['chat_history'] = []
-    if 'awaiting_confirmation' not in session:
-        session['awaiting_confirmation'] = False
     if 'uploaded_files' not in session:
         session['uploaded_files'] = []
         
@@ -649,101 +692,37 @@ def index():
             user_input = request.form.get('user_input', '')
             num_results = request.form.get('num_results', 5)
             
-        try:
-            num_results = int(num_results)
-            if num_results < 1 or num_results > 50:
-                num_results = 5
-        except ValueError:
-            num_results = 5
-            
         # Add incoming message to history
         session['chat_history'].append({'user': user_input})
         
-        # Check if request is related to uploaded files
-        if any(keyword in user_input.lower() for keyword in ['analyze file', 'analyze document', 'analyze uploaded']):
-            if session['uploaded_files']:
-                latest_file = session['uploaded_files'][-1]
-                response = f"Analyzing {latest_file['filename']}...\n\n"
-                
-                try:
-                    analysis = document_processor.analyze_content(latest_file['filename'])
-                    response += analysis
-                except Exception as e:
-                    response += f"Error analyzing file: {str(e)}"
-            else:
-                response = "No files have been uploaded yet. Please upload a file first."
-                
-            session['chat_history'].append({'bot': response})
-            return jsonify({'response': response}) if request.is_json else redirect(url_for('index'))
+        # Process the input
+        result = process_user_input(user_input)
         
-        # Handle normal requests
-        if session['awaiting_confirmation']:
-            if user_input.lower() in ['yes', 'y', 'да']:
-                final_query = session['pending_query']
-                results = get_arxiv_results(final_query, max_results=num_results)
-                response = format_search_results(results, final_query)
+        if result['type'] == 'search':
+            session['chat_history'].append({'bot': result['results']})
+            response = result['results']
+        elif result['type'] == 'research':
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                research_response = loop.run_until_complete(research_bot.process_query(result['query']))
+                loop.close()
+                session['chat_history'].append({'bot': research_response})
+                response = research_response
+            except Exception as e:
+                logger.error(f"Error processing research query: {str(e)}")
+                response = "I apologize, but I encountered an error while processing your research query."
                 session['chat_history'].append({'bot': response})
-                session['awaiting_confirmation'] = False
-                session.pop('pending_query', None)
-                session.pop('pending_num_results', None)
-            else:
-                response = "Please enter your modified query:"
-                session['chat_history'].append({'bot': response})
-                session['awaiting_modification'] = True
-                session['awaiting_confirmation'] = False
-        elif session.get('awaiting_modification', False):
-            final_query = user_input.strip()
-            results = get_arxiv_results(final_query, max_results=num_results)
-            response = format_search_results(results, final_query)
-            session['chat_history'].append({'bot': response})
-            session['awaiting_modification'] = False
         else:
-            if user_input.lower() in ['help', 'помощь']:
-                tips = print_search_tips()
-                session['chat_history'].append({'bot': tips})
+            if session['uploaded_files']:
+                modified_prompt = SYSTEM_PROMPT + "\n\nCurrently uploaded files:\n"
+                for file in session['uploaded_files']:
+                    modified_prompt += f"- {file['filename']} ({file['format']})\n"
+                response = generate_response_with_context(user_input, modified_prompt)
             else:
-                result = process_user_input(user_input)
-                if result['type'] == 'search':
-                    final_query = result['query']
-                    response = f"<p><strong>Generated query:</strong> {final_query}</p>"
-                    response += "<p>Type 'no' to open a field for entering a query (yes/no)</p>"
-                    session['chat_history'].append({'bot': response})
-                    session['awaiting_confirmation'] = True
-                    session['pending_query'] = final_query
-                    session['pending_num_results'] = num_results
-                elif result['type'] == 'research':
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        research_response = loop.run_until_complete(research_bot.process_query(result['query']))
-                        loop.close()
-
-                        # Если ответ содержит запрос на подтверждение
-                        if "Would you like me to proceed with this search?" in research_response:
-                            session['chat_history'].append({'bot': research_response})
-                            # Сохраняем состояние ожидания подтверждения для research_bot
-                            session['awaiting_research_confirmation'] = True
-                        elif "please enter your search query" in research_response.lower():
-                            session['chat_history'].append({'bot': research_response})
-                            session['awaiting_research_query'] = True
-                        else:
-                            # Обычный ответ с результатами
-                            session['chat_history'].append({'bot': research_response})
-                            
-                    except Exception as e:
-                        logger.error(f"Error processing research query: {str(e)}")
-                        response = "I apologize, but I encountered an error while processing your research query."
-                        session['chat_history'].append({'bot': response})
-                else:
-                    if session['uploaded_files']:
-                        modified_prompt = SYSTEM_PROMPT + "\n\nCurrently uploaded files:\n"
-                        for file in session['uploaded_files']:
-                            modified_prompt += f"- {file['filename']} ({file['format']})\n"
-                        response = generate_response_with_context(user_input, modified_prompt)
-                    else:
-                        response = generate_response(user_input)
-                    session['chat_history'].append({'bot': response})
-                    
+                response = generate_response(user_input)
+            session['chat_history'].append({'bot': response})
+        
         if request.is_json:
             return jsonify({'response': response})
         return redirect(url_for('index'))
@@ -752,7 +731,7 @@ def index():
 
 @app.route('/clear', methods=['GET'])
 def clear_chat():
-    """Clear chat history and session data."""
+    """Clears chat history and session data."""
     session.pop('chat_history', None)
     session.pop('awaiting_confirmation', None)
     session.pop('awaiting_modification', None)
@@ -763,7 +742,7 @@ def clear_chat():
 
 @app.route('/save_papers', methods=['POST'])
 def save_papers():
-    """Save papers to the RAG system manually."""
+    """Saves papers to the RAG system manually."""
     try:
         data = request.get_json()
         papers = data.get('papers', [])
@@ -784,7 +763,7 @@ def save_papers():
 
 @app.route('/query_papers', methods=['POST'])
 def query_papers():
-    """Query papers from the RAG system directly."""
+    """Queries papers from the RAG system directly."""
     try:
         data = request.get_json()
         query = data.get('query', '')
@@ -849,7 +828,7 @@ def research_chat():
 
 @app.errorhandler(404)
 def not_found_error(error):
-    """Handle 404 errors."""
+    """Handles 404 errors."""
     return jsonify({
         'status': 'error',
         'message': 'Resource not found'
@@ -857,7 +836,7 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    """Handle 500 errors."""
+    """Handles 500 errors."""
     logger.error(f"Internal server error: {str(error)}")
     return jsonify({
         'status': 'error',
