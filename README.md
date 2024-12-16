@@ -9,8 +9,6 @@
 ![RAG](https://img.shields.io/badge/RAG-enabled-success)
 ![arXiv](https://img.shields.io/badge/arXiv-API-red)
 ![OpenAlex](https://img.shields.io/badge/OpenAlex-API-green)
-![Documentation](https://img.shields.io/badge/docs-ready-blue)
-![Research](https://img.shields.io/badge/research-papers-yellow)
 
 # 🔬 Researchify - Scientific Research Assistant
 
