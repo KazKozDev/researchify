@@ -1,31 +1,88 @@
-# Python basics
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
 .Python
-env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
 venv/
+env/
+ENV/
 .env
+.venv
+env.bak/
+venv.bak/
 
 # IDE
 .idea/
 .vscode/
 *.swp
+*.swo
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
 
-# Project specific directories (auto-created by script)
-uploads/              # Created in app.py for file uploads
-paper_cache/          # Created in app.py for paper analysis cache
-vector_store/         # Created in app.py for FAISS indexes
-flask_session/        # Created by Flask for session management
-logs/                 # For log files
-app.log              # Main log file
-*.index              # FAISS index files
-metadata.pkl         # Vector store metadata
+# Project specific directories
+uploads/              # User uploaded files
+paper_cache/          # Cache for paper analysis
+vector_store/         # FAISS indexes and embeddings
+flask_session/        # Flask session files
+logs/                 # Log directory
+*.log                 # All log files
+
+# Test coverage
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+nosetests.xml
+coverage/
+
+# Documentation
+docs/_build/
+site/
 
 # Security
+*.pem
+*.key
+*.cert
 .env.local
 .env.*.local
 
 # System files
 .DS_Store
 Thumbs.db
+*.bak
+*.swp
+*.swo
+
+# Distribution
+dist/
+build/
+public/dist/
+
+# Temporary files
+tmp/
+temp/
+.temp/
+*.tmp
