@@ -30,6 +30,8 @@ Through natural language conversation, researchers can:
 - Process and extract information from various document formats
 - Explore research trends and connections
 
+![Book Translator](https://raw.githubusercontent.com/KazKozDev/researchify/main/demo.png)
+
 ## ✨ Features
 
 - **Conversational Interface**: Natural language interaction for research queries and paper discussions
