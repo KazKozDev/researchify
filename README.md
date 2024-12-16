@@ -1,4 +1,4 @@
-![Book Translator](https://raw.githubusercontent.com/KazKozDev/researchify/main/banner.jpg)
+![Researchify](https://raw.githubusercontent.com/KazKozDev/researchify/main/banner.jpg)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
@@ -203,6 +203,8 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 - FAISS for vector search capabilities
 - Sentence Transformers for embeddings
 - Ollama and Gemma-2B for LLM support
+  
+![Researchify](https://raw.githubusercontent.com/KazKozDev/researchify/main/footer.jpg)
 
 ---
 <div align="center">
