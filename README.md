@@ -1,5 +1,10 @@
 ![Book Translator](https://raw.githubusercontent.com/KazKozDev/researchify/main/banner.jpg)
 
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
+![Flask](https://img.shields.io/badge/flask-2.0%2B-lightgrey)
+![FAISS](https://img.shields.io/badge/FAISS-1.7%2B-orange)
+
 # 🔬 Researchify - Scientific Research Assistant
 
 A specialized chatbot designed to streamline scientific research by helping academics and researchers find, analyze, and understand scientific papers. The system serves as an intelligent research assistant that can search through academic databases, process scholarly articles, analyze citation patterns, and engage in natural conversations about research topics.
@@ -17,11 +22,6 @@ Through natural language conversation, researchers can:
 - Analyze citation patterns and impact
 - Process and extract information from various document formats
 - Explore research trends and connections
-
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
-![Flask](https://img.shields.io/badge/flask-2.0%2B-lightgrey)
-![FAISS](https://img.shields.io/badge/FAISS-1.7%2B-orange)
 
 ## ✨ Features
 
