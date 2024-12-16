@@ -1,3 +1,5 @@
+![Book Translator](https://raw.githubusercontent.com/KazKozDev/researchify/main/banner.jpg)
+
 # 🔬 Researchify - Scientific Research Assistant
 
 A specialized chatbot designed to streamline scientific research by helping academics and researchers find, analyze, and understand scientific papers. The system serves as an intelligent research assistant that can search through academic databases, process scholarly articles, analyze citation patterns, and engage in natural conversations about research topics.
